@@ -74,8 +74,10 @@ a,button{ font-family:inherit; }
   flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;
   padding:8px 4px 9px; border-radius:10px; border:1px solid var(--line);
   background:var(--surface); cursor:default; color:var(--ink-soft);
+  opacity:.45;  /* dimmed = not reachable yet; this is the only cue a touch screen gets */
 }
-.step-chip.is-clickable{ cursor:pointer; }
+.step-chip.is-clickable{ cursor:pointer; opacity:1; }
+.step-chip.is-active{ opacity:1; }
 .step-chip .num{
   width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center;
   font-family:'IBM Plex Mono',monospace; font-size:.75rem; font-weight:500;
@@ -456,12 +458,22 @@ a,button{ font-family:inherit; }
     correctSection.appendChild(finishNowBtn);
     correctSection.appendChild(redoLink);
 
+    // Shown on the upload screen once at least one photo is already done, so you can
+    // stop at 1 or 2 photos without hunting for the step chip at the top.
+    var finishFromUploadBtn = document.createElement('button');
+    finishFromUploadBtn.type = 'button';
+    finishFromUploadBtn.className = 'btn btn-primary';
+    finishFromUploadBtn.style.marginTop = '16px';
+    finishFromUploadBtn.textContent = 'ここまでで仕上げる(残りは空欄)';
+    finishFromUploadBtn.hidden = true;
+
     var heading = document.createElement('h2');
     var hint = document.createElement('p'); hint.className = 'hint';
 
     panel.appendChild(heading);
     panel.appendChild(hint);
     panel.appendChild(uploadZone);
+    panel.appendChild(finishFromUploadBtn);
     panel.appendChild(cropSection);
     panel.appendChild(correctSection);
     editorEl.appendChild(panel);
@@ -474,7 +486,8 @@ a,button{ font-family:inherit; }
       correctSection: correctSection, autoBtn: autoBtn, previewCanvas: previewCanvas,
       brightnessCtl: brightnessCtl, contrastCtl: contrastCtl, thresholdCtl: thresholdCtl,
       grayscaleCtl: grayscaleCtl, binarizeCtl: binarizeCtl,
-      confirmSlotBtn: confirmSlotBtn, finishNowBtn: finishNowBtn, redoLink: redoLink
+      confirmSlotBtn: confirmSlotBtn, finishNowBtn: finishNowBtn, redoLink: redoLink,
+      finishFromUploadBtn: finishFromUploadBtn
     };
 
     // ---- wire events ----
@@ -539,6 +552,10 @@ a,button{ font-family:inherit; }
     });
     finishNowBtn.addEventListener('click', function(){
       slot.confirmed = true;
+      view = 'layout';
+      render();
+    });
+    finishFromUploadBtn.addEventListener('click', function(){
       view = 'layout';
       render();
     });
@@ -782,13 +799,18 @@ a,button{ font-family:inherit; }
       slot.el.heading.textContent = (i + 1) + '枚目';
 
       if (slot.stage === 'upload' || !slot.img) {
-        slot.el.hint.textContent = '感熱紙のレシートなどでも構いません。書類全体が写るように撮影してください。';
+        var doneCount = slots.filter(function(s){ return s.finalCanvas; }).length;
+        slot.el.hint.textContent = doneCount > 0
+          ? '感熱紙のレシートなどでも構いません。ここで終わりにするなら、下の「ここまでで仕上げる」を押してください。'
+          : '感熱紙のレシートなどでも構いません。書類全体が写るように撮影してください。';
         slot.el.uploadZone.hidden = false;
+        slot.el.finishFromUploadBtn.hidden = (doneCount === 0);
         slot.el.cropSection.hidden = true;
         slot.el.correctSection.hidden = true;
       } else if (slot.stage === 'crop') {
         slot.el.hint.textContent = 'この面は1面あたり ' + CELL_W_MM + '×' + CELL_H_MM + 'mm(A4を4分割)で印刷されます。書類が枠いっぱいに収まるよう合わせてください。';
         slot.el.uploadZone.hidden = true;
+        slot.el.finishFromUploadBtn.hidden = true;
         slot.el.cropSection.hidden = false;
         slot.el.correctSection.hidden = true;
         initCropGeometry(slot);
@@ -799,6 +821,7 @@ a,button{ font-family:inherit; }
       } else if (slot.stage === 'correct') {
         slot.el.hint.textContent = '薄い印字は「自動補正」でくっきりさせてから、必要ならスライダーで微調整してください。';
         slot.el.uploadZone.hidden = true;
+        slot.el.finishFromUploadBtn.hidden = true;
         slot.el.cropSection.hidden = true;
         slot.el.correctSection.hidden = false;
         slot.el.confirmSlotBtn.textContent = (i < 2) ? 'この内容で確定して次へ' : 'この内容で確定して仕上げる';
