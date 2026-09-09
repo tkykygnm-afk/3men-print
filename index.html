@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<title>3面まとめ印刷</title>
+<title>3面まとめ印刷くん</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 :root{
@@ -200,7 +200,7 @@ a,button{ font-family:inherit; }
       <rect x="19" y="19" width="12" height="12" fill="none"/>
     </svg>
     <div>
-      <p class="app-title">3面まとめ印刷</p>
+      <p class="app-title">3面まとめ印刷くん</p>
       <p class="app-sub">写真3枚をトリミング・濃さ補正して、A4用紙1枚に配置します</p>
     </div>
   </header>
@@ -251,17 +251,20 @@ a,button{ font-family:inherit; }
   var A4_W_MM = 210, A4_H_MM = 297;
   var MARGIN_MM = 7;   // white border baked into the image (printers can't reach the edge)
   var GUTTER_MM = 4;   // gap between the 4 panels
-  var CELL_W_MM = (A4_W_MM - MARGIN_MM * 2 - GUTTER_MM) / 2;  // 96
-  var CELL_H_MM = (A4_H_MM - MARGIN_MM * 2 - GUTTER_MM) / 2;  // 139.5
+  var SLOT_W_MM = (A4_W_MM - MARGIN_MM * 2 - GUTTER_MM) / 2;   // 96: the 2-column grid spacing
+  var CELL_H_MM = (A4_H_MM - MARGIN_MM * 2 - GUTTER_MM) / 2;   // 139.5
+  var NARROW_FACTOR = 0.9;  // slips tend to be narrower than a half-A4 column; shrink the crop width, not the slot
+  var CELL_W_MM = SLOT_W_MM * NARROW_FACTOR;  // 86.4
   var FRAME_RATIO = CELL_W_MM / CELL_H_MM; // width / height, shared by the crop frame
 
   function mm2px(mm){ return Math.round(mm / MM_PER_IN * OUTPUT_DPI); }
   var OUT_W = mm2px(CELL_W_MM), OUT_H = mm2px(CELL_H_MM);
   var SHEET_W = mm2px(A4_W_MM), SHEET_H = mm2px(A4_H_MM);
+  var CENTER_OFFSET_MM = (SLOT_W_MM - CELL_W_MM) / 2; // centers the narrower image inside its column slot
   var CELL_POS = [
-    { x: mm2px(MARGIN_MM), y: mm2px(MARGIN_MM) },
-    { x: mm2px(MARGIN_MM + CELL_W_MM + GUTTER_MM), y: mm2px(MARGIN_MM) },
-    { x: mm2px(MARGIN_MM), y: mm2px(MARGIN_MM + CELL_H_MM + GUTTER_MM) }
+    { x: mm2px(MARGIN_MM + CENTER_OFFSET_MM), y: mm2px(MARGIN_MM) },
+    { x: mm2px(MARGIN_MM + SLOT_W_MM + GUTTER_MM + CENTER_OFFSET_MM), y: mm2px(MARGIN_MM) },
+    { x: mm2px(MARGIN_MM + CENTER_OFFSET_MM), y: mm2px(MARGIN_MM + CELL_H_MM + GUTTER_MM) }
   ];
   var MAX_ZOOM = 4;
   var STEP_LABELS = ["写真1", "写真2", "写真3", "仕上がり"];
