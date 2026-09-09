@@ -211,7 +211,7 @@ a,button{ font-family:inherit; }
 
   <section class="panel" id="layoutPanel" hidden>
     <h2>できあがり(A4 1枚)</h2>
-    <p class="hint">この画像がそのままA4 1枚になります。右下は空欄です。</p>
+    <p class="hint" id="layoutHint">この画像がそのままA4 1枚になります。</p>
     <img class="sheet-img" id="sheetImg" alt="A4 1枚に3面を配置した仕上がり">
     <div class="save-guide">
       <h3>iPhone / iPad から印刷する</h3>
@@ -221,13 +221,20 @@ a,button{ font-family:inherit; }
         <li>用紙サイズがA4になっているか確認して印刷</li>
       </ol>
     </div>
+    <div class="save-guide">
+      <h3>パソコンから印刷する</h3>
+      <ol>
+        <li>上の画像を<span class="strong">右クリック</span>(トラックパッドは2本指クリック)</li>
+        <li><span class="strong">「画像を保存」</span>で保存し、保存した画像を開く</li>
+        <li>開いたビューアの印刷機能で、用紙サイズ<span class="strong">A4・余白なし</span>で印刷</li>
+      </ol>
+    </div>
     <div class="edit-row">
       <button type="button" data-edit="0">1枚目を編集</button>
       <button type="button" data-edit="1">2枚目を編集</button>
       <button type="button" data-edit="2">3枚目を編集</button>
     </div>
     <p class="spec-note">1面あたり <span class="mono" id="cellMmNote"></span>・A4全体 <span class="mono" id="outDpiNote"></span></p>
-    <button class="btn btn-primary" id="printBtn">パソコンから印刷する</button>
     <button class="btn btn-ghost" id="resetAllBtn">最初からやり直す</button>
   </section>
 
@@ -297,7 +304,7 @@ a,button{ font-family:inherit; }
         if (!slots[i].img) return;
         view = 'edit'; currentSlot = i; render();
       } else {
-        if (!slots.every(function(s){ return s.confirmed; })) return;
+        if (!slots.some(function(s){ return s.confirmed; })) return;
         view = 'layout'; render();
       }
     });
@@ -436,9 +443,14 @@ a,button{ font-family:inherit; }
     confirmSlotBtn.className = 'btn btn-primary';
     confirmSlotBtn.style.marginTop = '10px';
 
+    var finishNowBtn = document.createElement('button');
+    finishNowBtn.type = 'button'; finishNowBtn.className = 'btn btn-ghost';
+    finishNowBtn.style.marginTop = '4px';
+
     correctSection.appendChild(autoBtn);
     correctSection.appendChild(grid);
     correctSection.appendChild(confirmSlotBtn);
+    correctSection.appendChild(finishNowBtn);
     correctSection.appendChild(redoLink);
 
     var heading = document.createElement('h2');
@@ -459,7 +471,7 @@ a,button{ font-family:inherit; }
       correctSection: correctSection, autoBtn: autoBtn, previewCanvas: previewCanvas,
       brightnessCtl: brightnessCtl, contrastCtl: contrastCtl, thresholdCtl: thresholdCtl,
       grayscaleCtl: grayscaleCtl, binarizeCtl: binarizeCtl,
-      confirmSlotBtn: confirmSlotBtn, redoLink: redoLink
+      confirmSlotBtn: confirmSlotBtn, finishNowBtn: finishNowBtn, redoLink: redoLink
     };
 
     // ---- wire events ----
@@ -520,6 +532,11 @@ a,button{ font-family:inherit; }
       slot.confirmed = true;
       if (currentSlot < 2) { currentSlot += 1; }
       else { view = 'layout'; }
+      render();
+    });
+    finishNowBtn.addEventListener('click', function(){
+      slot.confirmed = true;
+      view = 'layout';
       render();
     });
   }
@@ -697,13 +714,19 @@ a,button{ font-family:inherit; }
     var sctx = sheet.getContext('2d');
     sctx.fillStyle = '#fff';
     sctx.fillRect(0, 0, SHEET_W, SHEET_H);
+    var usedCount = 0;
     slots.forEach(function(slot, i){
       if (!slot.finalCanvas) return;
       sctx.drawImage(slot.finalCanvas, CELL_POS[i].x, CELL_POS[i].y, OUT_W, OUT_H);
+      usedCount += 1;
     });
     var url = sheet.toDataURL('image/jpeg', 0.95);
     sheetImgEl.src = url;
     printSheetImgEl.src = url;
+    var blankCount = 4 - usedCount;
+    document.getElementById('layoutHint').textContent = blankCount > 0
+      ? 'この画像がそのままA4 1枚になります。空欄が' + blankCount + 'マス残ります。'
+      : 'この画像がそのままA4 1枚になります。';
   }
 
   Array.prototype.forEach.call(document.querySelectorAll('[data-edit]'), function(btn){
@@ -713,8 +736,6 @@ a,button{ font-family:inherit; }
       render();
     });
   });
-
-  document.getElementById('printBtn').addEventListener('click', function(){ window.print(); });
   document.getElementById('resetAllBtn').addEventListener('click', function(){
     if (!confirm('3枚とも最初からやり直します。よろしいですか?')) return;
     slots.forEach(function(slot){
@@ -737,7 +758,7 @@ a,button{ font-family:inherit; }
         if (slots[i].img) chip.classList.add('is-clickable');
         if (view === 'edit' && currentSlot === i) chip.classList.add('is-active');
       } else {
-        if (slots.every(function(s){ return s.confirmed; })) chip.classList.add('is-clickable');
+        if (slots.some(function(s){ return s.confirmed; })) chip.classList.add('is-clickable');
         if (view === 'layout') chip.classList.add('is-active');
       }
     });
@@ -778,6 +799,8 @@ a,button{ font-family:inherit; }
         slot.el.cropSection.hidden = true;
         slot.el.correctSection.hidden = false;
         slot.el.confirmSlotBtn.textContent = (i < 2) ? 'この内容で確定して次へ' : 'この内容で確定して仕上げる';
+        slot.el.finishNowBtn.hidden = (i >= 2);
+        slot.el.finishNowBtn.textContent = 'これだけで仕上げる(残り' + (2 - i) + '枚は空欄のまま印刷)';
         syncCorrectionUI(slot);
       }
     });
